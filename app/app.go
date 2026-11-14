@@ -13,7 +13,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -216,21 +215,16 @@ func (m *Model) newSettings() *tui.Settings {
 	return s
 }
 
-// isTypeableKey reports whether k is a key that types text: a single
-// character or "space". Names like "esc" and modified or function keys
-// ("ctrl+q", "f10") are not typeable.
-func isTypeableKey(k string) bool {
-	return k == "space" || utf8.RuneCountInString(k) == 1
-}
-
 // quitKeyAllowed reports whether a typeable configured quit key may quit on
 // the given screen. Screens with text inputs (or that handle quit themselves)
 // are excluded so typing the key doesn't quit. Inbox and FolderInbox allow it
 // only while no search or filter is active.
 func quitKeyAllowed(current tea.Model) bool {
 	switch v := current.(type) {
-	case tui.Choice, tui.Status, tui.Marketplace, *tui.EmailView, *tui.Drafts:
+	case tui.Choice, tui.Status, tui.Marketplace, *tui.EmailView:
 		return true
+	case *tui.Drafts:
+		return !v.IsFilterActive()
 	case *tui.Inbox:
 		return !v.IsSearchActive() && !v.IsFilterActive()
 	case *tui.FolderInbox:
@@ -264,7 +258,7 @@ func isQuitKey(key string, screenOK bool) bool {
 	if q == "" || key != q {
 		return false
 	}
-	return !isTypeableKey(key) || screenOK
+	return !tui.IsTypeableKey(key) || screenOK
 }
 
 // isCancelKey reports whether key is the configured cancel/back key. A
@@ -274,7 +268,7 @@ func isCancelKey(key string, screenOK bool) bool {
 	if c == "" || key != c {
 		return false
 	}
-	return !isTypeableKey(key) || screenOK
+	return !tui.IsTypeableKey(key) || screenOK
 }
 
 // isPaletteQuitKey is isQuitKey for the command palette, whose search filter

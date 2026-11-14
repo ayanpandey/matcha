@@ -154,6 +154,7 @@ func TestQuitKeyAllowed(t *testing.T) {
 		{"status", tui.NewStatus("x"), true},
 		{"marketplace", tui.NewMarketplace(false), true},
 		{"drafts", tui.NewDrafts(nil), true},
+		{"drafts filter open", draftsWithFilter(t), false},
 		{"inbox", tui.NewInbox(nil, nil), true},
 		{"folder inbox", tui.NewFolderInbox([]string{"INBOX"}, nil), true},
 		{"login", tui.NewLogin(false), false},
@@ -166,6 +167,16 @@ func TestQuitKeyAllowed(t *testing.T) {
 			t.Errorf("%s: got %v, want %v", tt.name, got, tt.want)
 		}
 	}
+}
+
+func draftsWithFilter(t *testing.T) *tui.Drafts {
+	t.Helper()
+	d := tui.NewDrafts([]config.Draft{{ID: "d1", Subject: "hello"}})
+	d.Update(palette.KeyMsgFromBinding("/"))
+	if !d.IsFilterActive() {
+		t.Fatal("/ should open drafts filter")
+	}
+	return d
 }
 
 // producesQuit runs cmd (bounded to 200ms; a timeout means not quit, e.g. a
@@ -227,6 +238,17 @@ func TestQuitKeyScreens(t *testing.T) {
 	_, cmd = m.Update(palette.KeyMsgFromBinding("q"))
 	if producesQuit(cmd) {
 		t.Error("q typed into inbox search must not quit")
+	}
+
+	m.current = tui.NewDrafts(nil)
+	_, cmd = m.Update(palette.KeyMsgFromBinding("q"))
+	if !producesQuit(cmd) {
+		t.Error("q on drafts with no filter should quit")
+	}
+	m.current = draftsWithFilter(t)
+	_, cmd = m.Update(palette.KeyMsgFromBinding("q"))
+	if producesQuit(cmd) {
+		t.Error("q typed into drafts filter must not quit")
 	}
 
 	fi := tui.NewFolderInbox([]string{"INBOX"}, nil)
